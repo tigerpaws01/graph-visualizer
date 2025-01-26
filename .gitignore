@@ -1,0 +1,5 @@
+./SDL/*
+./main
+./main.exe
+./SDL3.dll
+./SDL3.so
