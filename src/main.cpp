@@ -12,11 +12,16 @@
 #include <vector>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
+#include <SDL3/SDL_render.h>
 #include <graph/node.hpp>
 #include <drawer.hpp>
+#include <cstdlib>
+#include <ctime>
+#include <cmath>
 
 #define WINDOW_WIDTH 640
 #define WINDOW_HEIGHT 480
+#define NUM_NODES 10
 
 /* We will use this renderer to draw into this window every frame. */
 static SDL_Window *window = NULL;
@@ -40,9 +45,15 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         return SDL_APP_FAILURE;
     }
 
-    nodes.push_back(GV::Node());
+    srand(time(NULL));
+    // generate 5 nodes
+    for (int i = 0; i < NUM_NODES; i++) {
+        int x = (rand() % 560) + 40;
+        int y = (rand() % 400) + 40;
+        nodes.push_back(GV::Node(x, y));
+    }
     drawer = GV::Drawer(renderer);
-
+    system("pause");
     return SDL_APP_CONTINUE;  /* carry on with the program! */
 }
 
@@ -66,9 +77,95 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);  /* new color, full alpha. */
     SDL_RenderClear(renderer);
 
+    // draw lines
+    for (int i = 0; i < NUM_NODES; i++) {
+        for (int j = i + 1; j < NUM_NODES; j++) {
+            SDL_FPoint pos_i = {nodes[i].x(), nodes[i].y()};
+            SDL_FPoint pos_j = {nodes[j].x(), nodes[j].y()};
+            SDL_SetRenderDrawColor(renderer, 255.0, 255.0, 255.0, SDL_ALPHA_OPAQUE);
+            if (!SDL_RenderLine(renderer, pos_i.x, pos_i.y, pos_j.x, pos_j.y)) exit(1);
+        }
+    }
+
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+
     for (const auto& node : nodes) {
         drawer.drawNode(node);
     }
+
+    // Apply Forces
+    // 1. Repelling forces between all pairs
+    float repel_rate = 0.00005f * 4;
+    float social_distance = 250.0f;
+    for (int i = 0; i < NUM_NODES; i++) {
+        for (int j = i + 1; j < NUM_NODES; j++) {
+            SDL_FPoint pos_i = {nodes[i].x(), nodes[i].y()};
+            SDL_FPoint pos_j = {nodes[j].x(), nodes[j].y()};
+            float distance = std::sqrt(
+                             (pos_i.x - pos_j.x) * (pos_i.x - pos_j.x)
+                           + (pos_i.y - pos_j.y) * (pos_i.y - pos_j.y));
+            if (distance > social_distance) continue;
+            // Compute directions for i and j
+            std::pair<float, float> dir_i;
+            {
+                dir_i.first = (pos_i.x - pos_j.x) / distance;
+                dir_i.second = (pos_i.y - pos_j.y) / distance;
+                dir_i.first *= (social_distance - distance) * repel_rate;
+                dir_i.second *= (social_distance - distance) * repel_rate;
+            }
+            std::pair<float, float> dir_j;
+            {
+                dir_j.first = (pos_j.x - pos_i.x) / distance;
+                dir_j.second = (pos_j.y - pos_i.y) / distance;
+                dir_j.first *= (social_distance - distance) * repel_rate;
+                dir_j.second *= (social_distance - distance) * repel_rate;
+            }
+            // std::cout << "(i, j) = (" << i << ", " << j << "), (" 
+            //           << nodes[i].x() << ", " << nodes[i].y() << ") -- (" << nodes[j].x() << ", " << nodes[j].y() << ")\n";
+            nodes[i].x() += dir_i.first;
+            nodes[i].y() += dir_i.second;
+            nodes[j].x() += dir_j.first;
+            nodes[j].y() += dir_j.second;
+            // std::cout << "\t(" 
+            //           << nodes[i].x() << ", " << nodes[i].y() << ") -- (" << nodes[j].x() << ", " << nodes[j].y() << ")\n";
+        }
+    }
+
+    // 2. Attracting forces between connected pairs.
+    for (int i = 0; i < NUM_NODES; i++) {
+        for (int j = i + 1; j < NUM_NODES; j++) {
+            SDL_FPoint pos_i = {nodes[i].x(), nodes[i].y()};
+            SDL_FPoint pos_j = {nodes[j].x(), nodes[j].y()};
+            float distance = std::sqrt(
+                             (pos_i.x - pos_j.x) * (pos_i.x - pos_j.x)
+                           + (pos_i.y - pos_j.y) * (pos_i.y - pos_j.y));
+            if (distance < social_distance) continue;
+            // Compute directions for i and j
+            std::pair<float, float> dir_i;
+            {
+                dir_i.first = (pos_i.x - pos_j.x) / distance;
+                dir_i.second = (pos_i.y - pos_j.y) / distance;
+                dir_i.first *= (social_distance - distance) * repel_rate;
+                dir_i.second *= (social_distance - distance) * repel_rate;
+            }
+            std::pair<float, float> dir_j;
+            {
+                dir_j.first = (pos_j.x - pos_i.x) / distance;
+                dir_j.second = (pos_j.y - pos_i.y) / distance;
+                dir_j.first *= (social_distance - distance) * repel_rate;
+                dir_j.second *= (social_distance - distance) * repel_rate;
+            }
+            // std::cout << "(i, j) = (" << i << ", " << j << "), (" 
+            //           << nodes[i].x() << ", " << nodes[i].y() << ") -- (" << nodes[j].x() << ", " << nodes[j].y() << ")\n";
+            nodes[i].x() += dir_i.first;
+            nodes[i].y() += dir_i.second;
+            nodes[j].x() += dir_j.first;
+            nodes[j].y() += dir_j.second;
+            // std::cout << "\t(" 
+            //           << nodes[i].x() << ", " << nodes[i].y() << ") -- (" << nodes[j].x() << ", " << nodes[j].y() << ")\n";
+        }
+    }
+
 
     /* put the newly-cleared rendering on the screen. */
     SDL_RenderPresent(renderer);
