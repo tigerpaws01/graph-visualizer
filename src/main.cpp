@@ -28,6 +28,7 @@ static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
 
 std::vector<GV::Node> nodes;
+std::vector<std::vector<bool>> connections;
 GV::Drawer drawer;
 
 /* This function runs once at startup. */
@@ -52,8 +53,17 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         int y = (rand() % 400) + 40;
         nodes.push_back(GV::Node(x, y));
     }
-    drawer = GV::Drawer(renderer);
+    // randomly connect them
+    connections = std::vector<std::vector<bool>>(NUM_NODES, std::vector<bool>(NUM_NODES, false));
+    for (int i = 0; i < NUM_NODES; i++) {
+        for (int j = i + 1; j < NUM_NODES; j++) {
+            if (rand() % 2 == 0) {
+                connections[i][j] = true;
+            }
+        }
+    }
     system("pause");
+    drawer = GV::Drawer(renderer);
     return SDL_APP_CONTINUE;  /* carry on with the program! */
 }
 
@@ -78,12 +88,13 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     SDL_RenderClear(renderer);
 
     // draw lines
+    SDL_SetRenderDrawColor(renderer, 255.0, 255.0, 255.0, SDL_ALPHA_OPAQUE);
     for (int i = 0; i < NUM_NODES; i++) {
         for (int j = i + 1; j < NUM_NODES; j++) {
+            if (!connections[i][j]) continue;
             SDL_FPoint pos_i = {nodes[i].x(), nodes[i].y()};
             SDL_FPoint pos_j = {nodes[j].x(), nodes[j].y()};
-            SDL_SetRenderDrawColor(renderer, 255.0, 255.0, 255.0, SDL_ALPHA_OPAQUE);
-            if (!SDL_RenderLine(renderer, pos_i.x, pos_i.y, pos_j.x, pos_j.y)) exit(1);
+            SDL_RenderLine(renderer, pos_i.x, pos_i.y, pos_j.x, pos_j.y);
         }
     }
 
@@ -96,7 +107,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     // Apply Forces
     // 1. Repelling forces between all pairs
     float repel_rate = 0.00005f * 4;
-    float social_distance = 250.0f;
+    float social_distance = 200.0f;
+    float attraction_distance = 250.0f;
     for (int i = 0; i < NUM_NODES; i++) {
         for (int j = i + 1; j < NUM_NODES; j++) {
             SDL_FPoint pos_i = {nodes[i].x(), nodes[i].y()};
@@ -134,26 +146,27 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     // 2. Attracting forces between connected pairs.
     for (int i = 0; i < NUM_NODES; i++) {
         for (int j = i + 1; j < NUM_NODES; j++) {
+            if (!connections[i][j]) continue;
             SDL_FPoint pos_i = {nodes[i].x(), nodes[i].y()};
             SDL_FPoint pos_j = {nodes[j].x(), nodes[j].y()};
             float distance = std::sqrt(
                              (pos_i.x - pos_j.x) * (pos_i.x - pos_j.x)
                            + (pos_i.y - pos_j.y) * (pos_i.y - pos_j.y));
-            if (distance < social_distance) continue;
+            if (distance < attraction_distance) continue;
             // Compute directions for i and j
             std::pair<float, float> dir_i;
             {
                 dir_i.first = (pos_i.x - pos_j.x) / distance;
                 dir_i.second = (pos_i.y - pos_j.y) / distance;
-                dir_i.first *= (social_distance - distance) * repel_rate;
-                dir_i.second *= (social_distance - distance) * repel_rate;
+                dir_i.first *= (attraction_distance - distance) * repel_rate;
+                dir_i.second *= (attraction_distance - distance) * repel_rate;
             }
             std::pair<float, float> dir_j;
             {
                 dir_j.first = (pos_j.x - pos_i.x) / distance;
                 dir_j.second = (pos_j.y - pos_i.y) / distance;
-                dir_j.first *= (social_distance - distance) * repel_rate;
-                dir_j.second *= (social_distance - distance) * repel_rate;
+                dir_j.first *= (attraction_distance - distance) * repel_rate;
+                dir_j.second *= (attraction_distance - distance) * repel_rate;
             }
             // std::cout << "(i, j) = (" << i << ", " << j << "), (" 
             //           << nodes[i].x() << ", " << nodes[i].y() << ") -- (" << nodes[j].x() << ", " << nodes[j].y() << ")\n";
