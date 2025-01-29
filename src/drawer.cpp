@@ -43,4 +43,18 @@ void Drawer::drawNode(const Node& node, const Camera& camera) const {
     SDL_RenderGeometry(_renderer, nullptr, vertices, NUM_SPHERE_NODES + 1, indices, NUM_SPHERE_NODES * 3);
 }
 
+void Drawer::drawConnections(const std::vector<Node>& nodes, const Camera& camera) const {
+    SDL_SetRenderDrawColor(_renderer, 255.0, 255.0, 255.0, SDL_ALPHA_OPAQUE);
+    // TODO: directed & undirected graphs
+    for (int i = 0; i < nodes.size(); i++) {
+        auto& from = nodes[i];
+        auto fromPos = camera.toScreenSpace(from);
+        for (auto it = from.beginFanout(); it != from.endFanout(); ++it) {
+            auto& to = *(*it);
+            auto toPos = camera.toScreenSpace(to);
+            SDL_RenderLine(_renderer, fromPos.x, fromPos.y, toPos.x, toPos.y);
+        }
+    }
+}
+
 } // namespace GV

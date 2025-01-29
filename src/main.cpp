@@ -20,7 +20,6 @@ static SDL_Window *window = NULL;
 static SDL_Renderer *renderer = NULL;
 
 std::vector<GV::Node> nodes;
-std::vector<std::vector<bool>> connections;
 GV::Drawer drawer;
 GV::Camera camera(WINDOW_WIDTH, WINDOW_HEIGHT);
 
@@ -46,14 +45,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
     for (int i = 0; i < NUM_NODES; i++) {
         int x = (rand() % 600) - 300;
         int y = (rand() % 440) - 220;
-        nodes.push_back(GV::Node(x, y));
+        nodes.push_back(GV::Node(i, x, y));
     }
     // randomly connect them
-    connections = std::vector<std::vector<bool>>(NUM_NODES, std::vector<bool>(NUM_NODES, false));
     for (int i = 0; i < NUM_NODES; i++) {
         for (int j = i + 1; j < NUM_NODES; j++) {
             if (rand() % 2 == 0) {
-                connections[i][j] = true;
+                nodes[i].appendFanout(nodes[j]);
             }
         }
     }
@@ -105,17 +103,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     SDL_RenderClear(renderer);
 
     // draw lines
-    SDL_SetRenderDrawColor(renderer, 255.0, 255.0, 255.0, SDL_ALPHA_OPAQUE);
-    for (int i = 0; i < NUM_NODES; i++) {
-        for (int j = i + 1; j < NUM_NODES; j++) {
-            if (!connections[i][j]) continue;
-            SDL_FPoint pos_i = {nodes[i].x(), nodes[i].y()};
-            SDL_FPoint pos_j = {nodes[j].x(), nodes[j].y()};
-            SDL_RenderLine(renderer, pos_i.x, pos_i.y, pos_j.x, pos_j.y);
-        }
-    }
-
-    SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
+    drawer.drawConnections(nodes, camera);
 
     for (const auto& node : nodes) {
         drawer.drawNode(node, camera);
@@ -127,7 +115,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     float social_distance = 200.0f;
     float attraction_distance = 250.0f;
     for (int i = 0; i < NUM_NODES; i++) {
-        break;
         for (int j = i + 1; j < NUM_NODES; j++) {
             SDL_FPoint pos_i = {nodes[i].x(), nodes[i].y()};
             SDL_FPoint pos_j = {nodes[j].x(), nodes[j].y()};
@@ -163,9 +150,8 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     // 2. Attracting forces between connected pairs.
     for (int i = 0; i < NUM_NODES; i++) {
-        break;
         for (int j = i + 1; j < NUM_NODES; j++) {
-            if (!connections[i][j]) continue;
+            // if (!connections[i][j]) continue; // TODO: attraction works on connected pairs
             SDL_FPoint pos_i = {nodes[i].x(), nodes[i].y()};
             SDL_FPoint pos_j = {nodes[j].x(), nodes[j].y()};
             float distance = std::sqrt(
