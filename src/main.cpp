@@ -62,7 +62,6 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
             }
         }
     }
-    system("pause");
     drawer = GV::Drawer(renderer);
     return SDL_APP_CONTINUE;  /* carry on with the program! */
 }
@@ -73,6 +72,15 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     if (event->type == SDL_EVENT_QUIT) {
         return SDL_APP_SUCCESS;  /* end the program, reporting success to the OS. */
     }
+
+    if (event->type == SDL_EVENT_MOUSE_MOTION) {
+        std::cout << "motion\n";
+    } else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+        std::cout << "down\n";
+    } else if (event->type == SDL_EVENT_MOUSE_BUTTON_UP) {
+        std::cout << "up\n";
+    }
+
     return SDL_APP_CONTINUE;  /* carry on with the program! */
 }
 
@@ -178,7 +186,6 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             //           << nodes[i].x() << ", " << nodes[i].y() << ") -- (" << nodes[j].x() << ", " << nodes[j].y() << ")\n";
         }
     }
-
 
     /* put the newly-cleared rendering on the screen. */
     SDL_RenderPresent(renderer);
