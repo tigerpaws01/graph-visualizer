@@ -2,6 +2,7 @@
 #define DRAWER_HPP
 
 #include <graph/node.hpp>
+#include <camera.hpp>
 #include <SDL3/SDL_rect.h>
 #include <SDL3/SDL_render.h>
 
@@ -14,12 +15,12 @@ public:
     Drawer() {}
     Drawer(SDL_Renderer* renderer) : _renderer(renderer) {}
 
-    void drawNode(const GV::Node& node) const;
+    void drawNode(const GV::Node& node, const Camera& camera) const;
 
 private:
     SDL_Renderer* _renderer;
 };
 
-}
+} // namespace GV
 
 #endif

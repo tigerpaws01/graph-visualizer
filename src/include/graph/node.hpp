@@ -22,6 +22,6 @@ private:
     SDL_FPoint _position;
 };
 
-}
+} // namespace GV
 
 #endif

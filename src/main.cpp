@@ -1,20 +1,12 @@
-/* clear.c ... */
-
-/*
- * This example code creates an SDL window and renderer, and then clears the
- * window to a different color every frame, so you'll effectively get a window
- * that's smoothly fading between colors.
- *
- * This code is public domain. Feel free to use it for any purpose!
- */
-
 #define SDL_MAIN_USE_CALLBACKS 1  /* use the callbacks instead of main() */
+#define SCROLL_DAMPER 0.1f
 #include <vector>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <SDL3/SDL_render.h>
 #include <graph/node.hpp>
 #include <drawer.hpp>
+#include <camera.hpp>
 #include <cstdlib>
 #include <ctime>
 #include <cmath>
@@ -30,6 +22,7 @@ static SDL_Renderer *renderer = NULL;
 std::vector<GV::Node> nodes;
 std::vector<std::vector<bool>> connections;
 GV::Drawer drawer;
+GV::Camera camera(WINDOW_WIDTH, WINDOW_HEIGHT);
 
 /* This function runs once at startup. */
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
@@ -48,9 +41,11 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 
     srand(time(NULL));
     // generate 5 nodes
+    // x = -300 ~ 300
+    // y = -220 ~ 220
     for (int i = 0; i < NUM_NODES; i++) {
-        int x = (rand() % 560) + 40;
-        int y = (rand() % 400) + 40;
+        int x = (rand() % 600) - 300;
+        int y = (rand() % 440) - 220;
         nodes.push_back(GV::Node(x, y));
     }
     // randomly connect them
@@ -74,12 +69,30 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     }
 
     if (event->type == SDL_EVENT_MOUSE_MOTION) {
-        std::cout << "motion\n";
-    } else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
-        std::cout << "down\n";
-    } else if (event->type == SDL_EVENT_MOUSE_BUTTON_UP) {
-        std::cout << "up\n";
-    }
+        // If mouse down: obtain relative position & move camera accordingly
+        auto mouseEvent = (SDL_MouseMotionEvent*)event;
+        if (mouseEvent->state == SDL_BUTTON_LEFT) {
+            camera.center().x -= mouseEvent->xrel / camera.size();
+            camera.center().y -= mouseEvent->yrel / camera.size();
+        }
+    } else if (event->type == SDL_EVENT_MOUSE_WHEEL) {
+        auto mouseEvent = (SDL_MouseWheelEvent*)event;
+        camera.size() -= mouseEvent->y * SCROLL_DAMPER * camera.size();
+        camera.size() = std::min(10.0f, std::max(0.05f, camera.size()));
+    } /*else if (event->type == SDL_EVENT_KEY_DOWN) {
+        if (((SDL_KeyboardEvent*)event)->key == SDLK_RIGHT) {
+            camera.center().x += 2.0f / camera.size();
+        } else if (((SDL_KeyboardEvent*)event)->key == SDLK_LEFT) {
+            camera.center().x -= 2.0f / camera.size();
+        } else if (((SDL_KeyboardEvent*)event)->key == SDLK_UP) {
+            camera.center().y -= 2.0f / camera.size();
+        } else if (((SDL_KeyboardEvent*)event)->key == SDLK_DOWN) {
+            camera.center().y += 2.0f / camera.size();
+        } 
+        std::cout << "keydown " << ((SDL_KeyboardEvent*)event)->key << "\n";
+    } else if (event->type == SDL_EVENT_KEY_UP) {
+        std::cout << "keyup " << ((SDL_KeyboardEvent*)event)->key << "\n";
+    }*/
 
     return SDL_APP_CONTINUE;  /* carry on with the program! */
 }
@@ -88,10 +101,6 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
     const double now = ((double)SDL_GetTicks()) / 1000.0;  /* convert from milliseconds to seconds. */
-    /* choose the color for the frame we will draw. The sine wave trick makes it fade between colors smoothly. */
-    /*const float red = (float) (0.5 + 0.5 * SDL_sin(now));
-    const float green = (float) (0.5 + 0.5 * SDL_sin(now + SDL_PI_D * 2 / 3));
-    const float blue = (float) (0.5 + 0.5 * SDL_sin(now + SDL_PI_D * 4 / 3));*/
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);  /* new color, full alpha. */
     SDL_RenderClear(renderer);
 
@@ -109,7 +118,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
 
     for (const auto& node : nodes) {
-        drawer.drawNode(node);
+        drawer.drawNode(node, camera);
     }
 
     // Apply Forces
@@ -118,6 +127,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     float social_distance = 200.0f;
     float attraction_distance = 250.0f;
     for (int i = 0; i < NUM_NODES; i++) {
+        break;
         for (int j = i + 1; j < NUM_NODES; j++) {
             SDL_FPoint pos_i = {nodes[i].x(), nodes[i].y()};
             SDL_FPoint pos_j = {nodes[j].x(), nodes[j].y()};
@@ -153,6 +163,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 
     // 2. Attracting forces between connected pairs.
     for (int i = 0; i < NUM_NODES; i++) {
+        break;
         for (int j = i + 1; j < NUM_NODES; j++) {
             if (!connections[i][j]) continue;
             SDL_FPoint pos_i = {nodes[i].x(), nodes[i].y()};
